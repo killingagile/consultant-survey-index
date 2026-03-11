@@ -187,7 +187,7 @@
 
     // Max possible score per dimension (sum all points available)
     const MAX_SCORES = (() => {
-      const max = { ambiguity: 0, exploration: 0, structure: 0, alignment: 0, momentum: 0, analytical: 0 };
+      const max = { ambiguity: 0, exploration: 0, structure: 0, alignment: 0, momentum: 0, analytical: 0, resourcefulness: 0 };
       questions.forEach(q => {
         const dimMax = {};
         q.options.forEach(opt => {
@@ -234,7 +234,7 @@
     const shuffledQuestions = questions.map(q => ({ ...q, options: shuffle(q.options) }));
 
     async function submitResults(raw, normalised, name, email) {
-      if (!APPS_SCRIPT_URL || APPS_SCRIPT_URL === "YOUR_APPS_SCRIPT_URL_HERE") return;
+      if (!APPS_SCRIPT_URL || APPS_SCRIPT_URL === "https://script.google.com/macros/s/AKfycbzq2XofZCX9An6-7i6iGx_F-uHllJpXnJlJwvPggwuV_2_rEYBS-Xu7yJsG3WDmc-64/exec") return;
       try {
         const params = new URLSearchParams({
           timestamp:            new Date().toISOString(),
