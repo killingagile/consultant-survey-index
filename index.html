@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Consultant Contribution Survey — Equal Experts</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { font-family: 'Lexend', sans-serif; background: #F5F5F5; min-height: 100vh; }
+    .fade-in { animation: fadeIn 0.3s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    .slide-out { animation: slideOut 0.2s ease forwards; }
+    @keyframes slideOut { to { opacity: 0; transform: translateX(-12px); } }
+    .bar-fill { transition: width 1s cubic-bezier(0.4,0,0.2,1); }
+    .option-card { cursor: pointer; transition: all 0.15s ease; border: 2px solid #e0e0e0; background: white; }
+    .option-card:hover { border-color: #1795D4; background: #f0f8fd; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(23,149,212,0.12); }
+    .option-card.selected { border-color: #1795D4; background: #e8f4fb; }
+    .btn-primary { background: #1795D4; color: white; border: none; cursor: pointer; font-family: 'Lexend', sans-serif; font-weight: 500; transition: all 0.15s; }
+    .btn-primary:hover { background: #1282bb; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(23,149,212,0.3); }
+    .btn-primary:disabled { background: #b0d4ea; cursor: not-allowed; transform: none; box-shadow: none; }
+    .btn-outline { background: transparent; color: #22567C; border: 2px solid #22567C; cursor: pointer; font-family: 'Lexend', sans-serif; font-weight: 500; transition: all 0.15s; }
+    .btn-outline:hover { background: #22567C; color: white; }
+    input[type="text"], input[type="email"] { transition: border-color 0.15s; }
+    input[type="text"]:focus, input[type="email"]:focus { outline: none; border-color: #1795D4 !important; box-shadow: 0 0 0 3px rgba(23,149,212,0.15); }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useEffect, useRef } = React;
+
+    const VERSION = "1.1.0";
+
+    // ============================================================
+    // CONFIGURATION
+    // ============================================================
+    const APPS_SCRIPT_URL = "YOUR_APPS_SCRIPT_URL_HERE";
+    // ============================================================
+
+    const DIMENSIONS = {
+      ambiguity:   { label: "Ambiguity Tolerance",        color: "#F07C00", icon: "◎" },
+      exploration: { label: "Exploration Tendency",       color: "#1795D4", icon: "◉" },
+      structure:   { label: "Structure Creation",         color: "#269C9E", icon: "▦" },
+      alignment:   { label: "Alignment & Communication",  color: "#22567C", icon: "◈" },
+      momentum:    { label: "Decision Momentum",          color: "#8B4FC8", icon: "▶" },
+      analytical:  { label: "Analytical Depth",           color: "#2A9D5C", icon: "◆" },
+      resourcefulness: { label: "Resourcefulness",           color: "#C0392B", icon: "⚡" }
+    };
+
+    const questions = [
+      {
+        id: 1,
+        prompt: "A team conversation keeps circling without progress. What do you do?",
+        options: [
+          { key: "A", text: "Push toward a clear decision.", scores: { momentum: 2, structure: 1 } },
+          { key: "B", text: "Ensure everyone's perspective is understood.", scores: { alignment: 2 } },
+          { key: "C", text: "Suggest a different way of approaching the problem.", scores: { exploration: 1, ambiguity: 1 } },
+          { key: "D", text: "Clarify the key issue that needs solving.", scores: { analytical: 2, structure: 1 } }
+        ]
+      },
+      {
+        id: 2,
+        prompt: "You join a project where the problem is still poorly defined. What do you typically do first?",
+        options: [
+          { key: "A", text: "Speak with stakeholders to understand expectations.", scores: { alignment: 2, ambiguity: 1 } },
+          { key: "B", text: "Analyse the situation to understand the root problem.", scores: { analytical: 2, ambiguity: 1 } },
+          { key: "C", text: "Start exploring possible approaches or experiments so you can begin making progress.", scores: { resourcefulness: 2, ambiguity: 1 } },
+          { key: "D", text: "Propose a simple plan or framework to help the team start organising the work.", scores: { structure: 2, momentum: 1 } }
+        ]
+      },
+      {
+        id: 3,
+        prompt: "A team has several possible directions but no clear answer. What is your instinct?",
+        options: [
+          { key: "A", text: "Encourage the team to choose a direction and move forward.", scores: { momentum: 2 } },
+          { key: "B", text: "Try a small experiment or prototype to learn which direction might work.", scores: { ambiguity: 2, exploration: 1, resourcefulness: 1 } },
+          { key: "C", text: "Bring the group together to clarify viewpoints.", scores: { alignment: 2 } },
+          { key: "D", text: "Examine the options carefully to understand implications.", scores: { analytical: 2 } }
+        ]
+      },
+      {
+        id: 4,
+        prompt: "A project discussion becomes messy and unclear. What do you usually do first?",
+        options: [
+          { key: "A", text: "Suggest a simple agenda or approach to help organise the discussion.", scores: { structure: 2 } },
+          { key: "B", text: "Clarify what different people are trying to achieve.", scores: { alignment: 2 } },
+          { key: "C", text: "Break the issue into smaller components to analyse.", scores: { analytical: 2 } },
+          { key: "D", text: "Suggest new ways the team might approach the problem.", scores: { exploration: 2 } }
+        ]
+      },
+      {
+        id: 5,
+        prompt: "A project is progressing slowly due to uncertainty. Your instinct is to:",
+        options: [
+          { key: "A", text: "Encourage the team to move forward with a decision.", scores: { momentum: 2 } },
+          { key: "B", text: "Investigate the problem more deeply.", scores: { analytical: 2 } },
+          { key: "C", text: "Clarify expectations with stakeholders.", scores: { alignment: 2 } },
+          { key: "D", text: "Explore several possible ways forward before committing to one.", scores: { ambiguity: 2, exploration: 1 } }
+        ]
+      },
+      {
+        id: 6,
+        prompt: "The team has many ideas but no clear plan. What do you tend to do?",
+        options: [
+          { key: "A", text: "Facilitate discussion about priorities.", scores: { alignment: 2 } },
+          { key: "B", text: "Suggest organising the ideas into a simple plan for how the team could proceed.", scores: { structure: 2 } },
+          { key: "C", text: "Analyse which ideas make the most sense.", scores: { analytical: 2 } },
+          { key: "D", text: "Help the team explore the most promising options.", scores: { exploration: 2 } }
+        ]
+      },
+      {
+        id: 7,
+        prompt: "A complex issue appears during delivery. What is your first reaction?",
+        options: [
+          { key: "A", text: "Talk to the people involved to understand context.", scores: { alignment: 2 } },
+          { key: "B", text: "Analyse the root cause.", scores: { analytical: 2 } },
+          { key: "C", text: "Help the team decide the next step to take.", scores: { momentum: 2 } },
+          { key: "D", text: "Try to understand the problem yourself and run a small test or experiment to learn more.", scores: { resourcefulness: 2, exploration: 1 } }
+        ]
+      },
+      {
+        id: 8,
+        prompt: "A team is unsure what success should look like. What do you do first?",
+        options: [
+          { key: "A", text: "Explore possible outcomes.", scores: { ambiguity: 2, exploration: 1 } },
+          { key: "B", text: "Push toward defining a clear target.", scores: { momentum: 2 } },
+          { key: "C", text: "Facilitate discussion about stakeholder goals.", scores: { alignment: 2 } },
+          { key: "D", text: "Analyse the problem to determine what success should look like.", scores: { analytical: 2 } }
+        ]
+      },
+      {
+        id: 9,
+        prompt: "A team has several competing priorities. What do you focus on?",
+        options: [
+          { key: "A", text: "Encourage the team to commit to one.", scores: { momentum: 2 } },
+          { key: "B", text: "Organise the priorities into a clearer framework so the team can assess them.", scores: { structure: 2 } },
+          { key: "C", text: "Help stakeholders agree on priorities.", scores: { alignment: 2 } },
+          { key: "D", text: "Explore different ways the team could approach the competing priorities.", scores: { exploration: 2 } }
+        ]
+      },
+      {
+        id: 10,
+        prompt: "You are asked to help a project that feels chaotic. What do you do first?",
+        options: [
+          { key: "A", text: "Introduce a simple framework or way of organising the work.", scores: { structure: 2 } },
+          { key: "B", text: "Diagnose what is causing the chaos.", scores: { analytical: 2 } },
+          { key: "C", text: "Understand how different people see the situation.", scores: { alignment: 2 } },
+          { key: "D", text: "Explore different ways the team could tackle the problem.", scores: { exploration: 2 } }
+        ]
+      },
+      {
+        id: 11,
+        prompt: "When a project begins without a clear brief or direction, which statement best reflects your reaction?",
+        options: [
+          { key: "A", text: "I'm comfortable starting work even if the situation is unclear and will help shape the direction as we go.", scores: { ambiguity: 2 } },
+          { key: "B", text: "I'm comfortable starting, but prefer to clarify key assumptions early.", scores: { ambiguity: 1, alignment: 1 } },
+          { key: "C", text: "I prefer to spend time understanding the situation thoroughly before acting.", scores: { analytical: 2 } },
+          { key: "D", text: "I prefer to wait until goals and expectations are clearer before committing to a direction.", scores: {} }
+        ]
+      },
+      {
+        id: 12,
+        prompt: "When you first encounter a difficult problem, your instinct is usually to:",
+        options: [
+          { key: "A", text: "Decide the next step.", scores: { momentum: 2 } },
+          { key: "B", text: "Break the problem into clearer parts so the team can work through it.", scores: { structure: 2 } },
+          { key: "C", text: "Explore possibilities.", scores: { exploration: 2 } },
+          { key: "D", text: "Speak to the people involved.", scores: { alignment: 2 } }
+        ]
+      },
+      {
+        id: 13,
+        prompt: "You are asked to help with a problem involving a tool, domain or concept you have not worked with before. What do you do first?",
+        options: [
+          { key: "A", text: "Start learning the basics yourself and try a small example so you can begin making progress.", scores: { resourcefulness: 2, ambiguity: 1 } },
+          { key: "B", text: "Look for someone with relevant experience and work with them to understand it.", scores: { alignment: 2, resourcefulness: 1 } },
+          { key: "C", text: "Spend time understanding the problem and constraints before deciding how to proceed.", scores: { analytical: 2 } },
+          { key: "D", text: "Raise the gap early and suggest bringing in someone with more expertise.", scores: { alignment: 2 } }
+        ]
+      }
+    ];
+
+    // Max possible score per dimension (sum all points available)
+    const MAX_SCORES = (() => {
+      const max = { ambiguity: 0, exploration: 0, structure: 0, alignment: 0, momentum: 0, analytical: 0 };
+      questions.forEach(q => {
+        const dimMax = {};
+        q.options.forEach(opt => {
+          Object.entries(opt.scores).forEach(([dim, val]) => {
+            dimMax[dim] = Math.max(dimMax[dim] || 0, val);
+          });
+        });
+        Object.entries(dimMax).forEach(([dim, val]) => { max[dim] = (max[dim] || 0) + val; });
+      });
+      return max;
+    })();
+
+    function computeScores(answers) {
+      const raw = { ambiguity: 0, exploration: 0, structure: 0, alignment: 0, momentum: 0, analytical: 0, resourcefulness: 0 };
+      Object.entries(answers).forEach(([qIdx, optKey]) => {
+        const q = questions[parseInt(qIdx)];
+        const opt = q.options.find(o => o.key === optKey);
+        if (opt) Object.entries(opt.scores).forEach(([dim, val]) => { raw[dim] += val; });
+      });
+      // Normalise to 0–100
+      const normalised = {};
+      Object.keys(raw).forEach(dim => {
+        normalised[dim] = MAX_SCORES[dim] > 0 ? Math.round((raw[dim] / MAX_SCORES[dim]) * 100) : 0;
+      });
+      return { raw, normalised };
+    }
+
+    function getTopDimensions(normalised, n = 2) {
+      return Object.entries(normalised)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, n)
+        .map(([key]) => key);
+    }
+
+    function shuffle(arr) {
+      const a = [...arr];
+      for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+      }
+      return a;
+    }
+
+    const shuffledQuestions = questions.map(q => ({ ...q, options: shuffle(q.options) }));
+
+    async function submitResults(raw, normalised, name, email) {
+      if (!APPS_SCRIPT_URL || APPS_SCRIPT_URL === "YOUR_APPS_SCRIPT_URL_HERE") return;
+      try {
+        const params = new URLSearchParams({
+          timestamp:            new Date().toISOString(),
+          name,
+          email,
+          raw_ambiguity:        raw.ambiguity,
+          raw_exploration:      raw.exploration,
+          raw_structure:        raw.structure,
+          raw_alignment:        raw.alignment,
+          raw_momentum:         raw.momentum,
+          raw_analytical:       raw.analytical,
+          pct_ambiguity:        normalised.ambiguity,
+          pct_exploration:      normalised.exploration,
+          pct_structure:        normalised.structure,
+          pct_alignment:        normalised.alignment,
+          pct_momentum:         normalised.momentum,
+          pct_analytical:       normalised.analytical,
+          raw_resourcefulness:  raw.resourcefulness,
+          pct_resourcefulness:  normalised.resourcefulness,
+          top_dimensions:       getTopDimensions(normalised).map(d => DIMENSIONS[d].label).join(", ")
+        });
+        const img = new Image();
+        img.src = `${APPS_SCRIPT_URL}?${params.toString()}`;
+      } catch (err) {
+        console.warn("Could not submit results:", err);
+      }
+    }
+
+    // Radar chart using SVG
+    function RadarChart({ normalised }) {
+      const dims = Object.keys(DIMENSIONS);
+      const n = dims.length;
+      const cx = 160, cy = 160, r = 120;
+      const levels = [25, 50, 75, 100];
+
+      const angleFor = i => (Math.PI * 2 * i / n) - Math.PI / 2;
+      const pointFor = (i, val) => {
+        const angle = angleFor(i);
+        const dist = (val / 100) * r;
+        return { x: cx + dist * Math.cos(angle), y: cy + dist * Math.sin(angle) };
+      };
+      const outerPoint = i => pointFor(i, 100);
+
+      const dataPoints = dims.map((dim, i) => pointFor(i, normalised[dim] || 0));
+      const polyPoints = dataPoints.map(p => `${p.x},${p.y}`).join(" ");
+
+      return (
+        <svg viewBox="0 0 320 320" style={{ width: "100%", maxWidth: 320, display: "block", margin: "0 auto" }}>
+          {/* Grid levels */}
+          {levels.map(level => {
+            const pts = dims.map((_, i) => pointFor(i, level));
+            return (
+              <polygon key={level}
+                points={pts.map(p => `${p.x},${p.y}`).join(" ")}
+                fill="none" stroke="#e0e0e0" strokeWidth="1" />
+            );
+          })}
+          {/* Spokes */}
+          {dims.map((_, i) => {
+            const op = outerPoint(i);
+            return <line key={i} x1={cx} y1={cy} x2={op.x} y2={op.y} stroke="#e0e0e0" strokeWidth="1" />;
+          })}
+          {/* Data polygon */}
+          <polygon points={polyPoints} fill="rgba(23,149,212,0.15)" stroke="#1795D4" strokeWidth="2" strokeLinejoin="round" />
+          {/* Data points */}
+          {dataPoints.map((p, i) => (
+            <circle key={i} cx={p.x} cy={p.y} r="4" fill={DIMENSIONS[dims[i]].color} stroke="white" strokeWidth="1.5" />
+          ))}
+          {/* Labels */}
+          {dims.map((dim, i) => {
+            const angle = angleFor(i);
+            const labelDist = r + 28;
+            const lx = cx + labelDist * Math.cos(angle);
+            const ly = cy + labelDist * Math.sin(angle);
+            const anchor = lx < cx - 5 ? "end" : lx > cx + 5 ? "start" : "middle";
+            const lines = DIMENSIONS[dim].label.split(" & ").join("\n").split(" ");
+            // Split label into max 2 lines
+            const mid = Math.ceil(lines.length / 2);
+            const line1 = lines.slice(0, mid).join(" ");
+            const line2 = lines.slice(mid).join(" ");
+            return (
+              <text key={dim} x={lx} y={ly} textAnchor={anchor} fontSize="10" fontFamily="Lexend, sans-serif" fill="#22567C" fontWeight="500">
+                <tspan x={lx} dy="0">{line1}</tspan>
+                {line2 && <tspan x={lx} dy="13">{line2}</tspan>}
+              </text>
+            );
+          })}
+        </svg>
+      );
+    }
+
+    function App() {
+      const [screen, setScreen] = useState("landing");
+      const [currentQ, setCurrentQ] = useState(0);
+      const [answers, setAnswers] = useState({});
+      const [selected, setSelected] = useState(null);
+      const [animating, setAnimating] = useState(false);
+      const [name, setName] = useState("");
+      const [email, setEmail] = useState("");
+      const [fieldErrors, setFieldErrors] = useState({});
+      const [results, setResults] = useState(null);
+
+      const handleNext = () => {
+        if (!selected) return;
+        const newAnswers = { ...answers, [currentQ]: selected };
+        setAnswers(newAnswers);
+        setAnimating(true);
+        setTimeout(() => {
+          setAnimating(false);
+          setSelected(null);
+          if (currentQ < shuffledQuestions.length - 1) {
+            setCurrentQ(currentQ + 1);
+          } else {
+            const { raw, normalised } = computeScores(newAnswers);
+            submitResults(raw, normalised, name, email);
+            setResults({ raw, normalised });
+            setScreen("results");
+          }
+        }, 200);
+      };
+
+      const handleRetake = () => {
+        setAnswers({}); setCurrentQ(0); setSelected(null);
+        setName(""); setEmail(""); setFieldErrors({});
+        setResults(null); setScreen("landing");
+      };
+
+      const progress = (currentQ / shuffledQuestions.length) * 100;
+      const topDims = results ? getTopDimensions(results.normalised) : [];
+
+      return (
+        <div style={{ fontFamily: "'Lexend', sans-serif", minHeight: "100vh", background: "#F5F5F5" }}>
+
+          {/* Header */}
+          <header style={{ background: "#22567C", padding: "14px 32px", display: "flex", alignItems: "center", gap: 12 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <div style={{ width: 36, height: 36, background: "#1795D4", borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <span style={{ color: "white", fontWeight: 700, fontSize: 14, letterSpacing: "-0.5px" }}>[=]</span>
+              </div>
+              <span style={{ color: "white", fontWeight: 400, fontSize: 16, letterSpacing: "-0.3px" }}>equal experts</span>
+            </div>
+            <div style={{ marginLeft: "auto", width: 3, height: 20, borderRadius: 2, background: "linear-gradient(180deg, #1795D4, #269C9E, #F07C00)" }} />
+          </header>
+          <div style={{ height: 4, background: "linear-gradient(90deg, #1795D4 0%, #269C9E 45%, #F07C00 100%)" }} />
+
+          {/* LANDING */}
+          {screen === "landing" && (
+            <div className="fade-in" style={{ maxWidth: 660, margin: "0 auto", padding: "64px 24px" }}>
+              <p style={{ fontSize: 11, color: "#1795D4", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 16 }}>Behavioural Profile</p>
+              <h1 style={{ fontSize: 34, fontWeight: 400, color: "#22567C", lineHeight: 1.15, marginBottom: 20 }}>Consultant Contribution Survey</h1>
+              <div style={{ width: 48, height: 3, background: "linear-gradient(90deg, #1795D4, #269C9E)", borderRadius: 2, marginBottom: 28 }} />
+              <p style={{ fontSize: 15, color: "#212526", lineHeight: 1.65, marginBottom: 16 }}>
+                Consulting engagements rarely begin with complete information. Scope shifts, stakeholder expectations change, and teams often need to move forward before the full picture is clear. In these environments, people contribute in different ways.
+              </p>
+              <p style={{ fontSize: 15, color: "#212526", lineHeight: 1.65, marginBottom: 40 }}>
+                This survey presents thirteen common consulting scenarios to help surface how you naturally tend to contribute — not as a definitive classification, but as a useful input for conversations about team composition and engagement fit.
+              </p>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14, marginBottom: 40 }}>
+                {Object.entries(DIMENSIONS).map(([key, dim]) => (
+                  <div key={key} style={{ background: "white", borderRadius: 10, padding: "16px 14px", borderTop: `3px solid ${dim.color}` }}>
+                    <div style={{ fontSize: 20, marginBottom: 8, color: dim.color }}>{dim.icon}</div>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: "#22567C", lineHeight: 1.3 }}>{dim.label}</div>
+                  </div>
+                ))}
+              </div>
+
+              <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 32, background: "white", borderRadius: 8, padding: "14px 18px", border: "1px solid #e0e0e0" }}>
+                <span style={{ color: "#1795D4", fontSize: 18 }}>⏱</span>
+                <span style={{ fontSize: 13, color: "#555" }}>13 questions · 4 options each · takes about 3 minutes · no right or wrong answers</span>
+              </div>
+              <button className="btn-primary" onClick={() => setScreen("instructions")} style={{ padding: "14px 36px", fontSize: 15, borderRadius: 8 }}>
+                Start the survey →
+              </button>
+            </div>
+          )}
+
+          {/* INSTRUCTIONS */}
+          {screen === "instructions" && (
+            <div className="fade-in" style={{ maxWidth: 580, margin: "0 auto", padding: "64px 24px" }}>
+              <p style={{ fontSize: 11, color: "#1795D4", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 12 }}>Before you begin</p>
+              <h2 style={{ fontSize: 26, fontWeight: 400, color: "#22567C", marginBottom: 24 }}>A few things to keep in mind</h2>
+              <div style={{ background: "white", borderRadius: 12, padding: "28px", marginBottom: 32, borderLeft: "4px solid #1795D4" }}>
+                <p style={{ fontSize: 15, color: "#212526", lineHeight: 1.7 }}>For each question, choose the option that most closely reflects what you would <strong>actually do first</strong> in that situation — not what you think the best answer might be.</p>
+                <br />
+                <p style={{ fontSize: 15, color: "#212526", lineHeight: 1.7 }}>There are no right or wrong responses. The survey reflects how you naturally approach problems, not your capability or seniority.</p>
+                <br />
+                <p style={{ fontSize: 15, color: "#212526", lineHeight: 1.7 }}>Results show tendencies — the ways you are most naturally inclined to contribute. Most people show strengths across several dimensions, and it is this mix that helps teams perform effectively in different environments.</p>
+              </div>
+              <div style={{ display: "flex", gap: 12 }}>
+                <button className="btn-outline" onClick={() => setScreen("landing")} style={{ padding: "12px 24px", fontSize: 14, borderRadius: 8 }}>← Back</button>
+                <button className="btn-primary" onClick={() => setScreen("details")} style={{ padding: "12px 28px", fontSize: 14, borderRadius: 8 }}>I understand — continue</button>
+              </div>
+            </div>
+          )}
+
+          {/* DETAILS */}
+          {screen === "details" && (
+            <div className="fade-in" style={{ maxWidth: 580, margin: "0 auto", padding: "64px 24px" }}>
+              <p style={{ fontSize: 11, color: "#1795D4", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 12 }}>Before we start</p>
+              <h2 style={{ fontSize: 26, fontWeight: 400, color: "#22567C", marginBottom: 8 }}>Who are you?</h2>
+              <p style={{ fontSize: 14, color: "#666", marginBottom: 32, lineHeight: 1.6 }}>Please use your Equal Experts email address so we can match results across the network.</p>
+              <div style={{ display: "flex", flexDirection: "column", gap: 20, marginBottom: 32 }}>
+                <div>
+                  <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: "#22567C", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>Full name</label>
+                  <input type="text" value={name}
+                    onChange={e => { setName(e.target.value); setFieldErrors(fe => ({ ...fe, name: null })); }}
+                    placeholder="e.g. Alex Smith"
+                    style={{ width: "100%", padding: "12px 16px", fontSize: 14, fontFamily: "'Lexend', sans-serif", border: `2px solid ${fieldErrors.name ? "#e53e3e" : "#e0e0e0"}`, borderRadius: 8, color: "#212526", background: "white" }}
+                  />
+                  {fieldErrors.name && <p style={{ fontSize: 12, color: "#e53e3e", marginTop: 6 }}>{fieldErrors.name}</p>}
+                </div>
+                <div>
+                  <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: "#22567C", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>Equal Experts email</label>
+                  <input type="email" value={email}
+                    onChange={e => { setEmail(e.target.value); setFieldErrors(fe => ({ ...fe, email: null })); }}
+                    placeholder="e.g. alex.smith@equalexperts.com"
+                    style={{ width: "100%", padding: "12px 16px", fontSize: 14, fontFamily: "'Lexend', sans-serif", border: `2px solid ${fieldErrors.email ? "#e53e3e" : "#e0e0e0"}`, borderRadius: 8, color: "#212526", background: "white" }}
+                  />
+                  {fieldErrors.email && <p style={{ fontSize: 12, color: "#e53e3e", marginTop: 6 }}>{fieldErrors.email}</p>}
+                </div>
+              </div>
+              <div style={{ display: "flex", gap: 12 }}>
+                <button className="btn-outline" onClick={() => setScreen("instructions")} style={{ padding: "12px 24px", fontSize: 14, borderRadius: 8 }}>← Back</button>
+                <button className="btn-primary" onClick={() => {
+                  const errors = {};
+                  if (!name.trim()) errors.name = "Please enter your name.";
+                  if (!email.trim()) errors.email = "Please enter your email address.";
+                  else if (!email.includes("@")) errors.email = "Please enter a valid email address.";
+                  if (Object.keys(errors).length > 0) { setFieldErrors(errors); return; }
+                  setScreen("quiz"); setCurrentQ(0); setAnswers({}); setSelected(null);
+                }} style={{ padding: "12px 28px", fontSize: 14, borderRadius: 8 }}>Start the questions →</button>
+              </div>
+            </div>
+          )}
+
+          {/* QUIZ */}
+          {screen === "quiz" && (
+            <div style={{ maxWidth: 640, margin: "0 auto", padding: "40px 24px" }}>
+              <div style={{ marginBottom: 36 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+                  <span style={{ fontSize: 11, color: "#1795D4", textTransform: "uppercase", letterSpacing: "0.08em" }}>
+                    Question {currentQ + 1} of {shuffledQuestions.length}
+                  </span>
+                  <span style={{ fontSize: 11, color: "#999" }}>{Math.round(progress)}% complete</span>
+                </div>
+                <div style={{ height: 4, background: "#e0e0e0", borderRadius: 4, overflow: "hidden" }}>
+                  <div className="bar-fill" style={{ height: "100%", width: `${progress}%`, background: "linear-gradient(90deg, #1795D4, #269C9E)", borderRadius: 4 }} />
+                </div>
+              </div>
+
+              <div className={animating ? "slide-out" : "fade-in"}>
+                <h2 style={{ fontSize: 19, fontWeight: 400, color: "#22567C", lineHeight: 1.4, marginBottom: 28 }}>
+                  {shuffledQuestions[currentQ].prompt}
+                </h2>
+                <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 32 }}>
+                  {shuffledQuestions[currentQ].options.map(opt => (
+                    <div key={opt.key}
+                      className={`option-card ${selected === opt.key ? "selected" : ""}`}
+                      onClick={() => setSelected(opt.key)}
+                      style={{ borderRadius: 10, padding: "16px 20px", display: "flex", alignItems: "flex-start", gap: 14 }}>
+                      <div style={{
+                        width: 26, height: 26, borderRadius: "50%",
+                        border: `2px solid ${selected === opt.key ? "#1795D4" : "#ccc"}`,
+                        background: selected === opt.key ? "#1795D4" : "white",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        flexShrink: 0, marginTop: 1, transition: "all 0.15s"
+                      }}>
+                        {selected === opt.key && <div style={{ width: 8, height: 8, borderRadius: "50%", background: "white" }} />}
+                      </div>
+                      <span style={{ fontSize: 14, color: "#212526", lineHeight: 1.55 }}>{opt.text}</span>
+                    </div>
+                  ))}
+                </div>
+                <button className="btn-primary" onClick={handleNext} disabled={!selected}
+                  style={{ padding: "13px 32px", fontSize: 14, borderRadius: 8 }}>
+                  {currentQ < shuffledQuestions.length - 1 ? "Next question →" : "See my profile →"}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* RESULTS */}
+          {screen === "results" && results && (
+            <div className="fade-in" style={{ maxWidth: 700, margin: "0 auto", padding: "48px 24px" }}>
+              <p style={{ fontSize: 11, color: "#1795D4", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 12 }}>Your behavioural profile</p>
+              <h2 style={{ fontSize: 28, fontWeight: 400, color: "#22567C", marginBottom: 8 }}>
+                {topDims.map(d => DIMENSIONS[d].label).join(" · ")}
+              </h2>
+              <p style={{ fontSize: 14, color: "#666", marginBottom: 36, lineHeight: 1.6 }}>
+                Based on your responses, these dimensions reflect your strongest natural tendencies. The full profile is shown below.
+              </p>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, marginBottom: 32 }}>
+
+                {/* Radar chart */}
+                <div style={{ background: "white", borderRadius: 12, padding: "24px", border: "1px solid #e8e8e8", display: "flex", flexDirection: "column", alignItems: "center" }}>
+                  <p style={{ fontSize: 11, color: "#1795D4", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 16, alignSelf: "flex-start" }}>Profile shape</p>
+                  <RadarChart normalised={results.normalised} />
+                </div>
+
+                {/* Bar chart */}
+                <div style={{ background: "white", borderRadius: 12, padding: "24px", border: "1px solid #e8e8e8" }}>
+                  <p style={{ fontSize: 11, color: "#1795D4", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 20 }}>Dimension scores</p>
+                  {Object.entries(DIMENSIONS)
+                    .sort((a, b) => results.normalised[b[0]] - results.normalised[a[0]])
+                    .map(([key, dim]) => {
+                      const pct = results.normalised[key] || 0;
+                      return (
+                        <div key={key} style={{ marginBottom: 16 }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                              <span style={{ color: dim.color, fontSize: 13 }}>{dim.icon}</span>
+                              <span style={{ fontSize: 12, fontWeight: 500, color: "#22567C" }}>{dim.label}</span>
+                            </div>
+                            <span style={{ fontSize: 12, color: "#555", fontWeight: 500 }}>{pct}%</span>
+                          </div>
+                          <div style={{ height: 8, background: "#f0f0f0", borderRadius: 4, overflow: "hidden" }}>
+                            <div className="bar-fill" style={{ height: "100%", width: `${pct}%`, background: dim.color, borderRadius: 4 }} />
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+              </div>
+
+              {/* Top dimension descriptions */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 24 }}>
+                {topDims.map(key => {
+                  const dim = DIMENSIONS[key];
+                  const descriptions = {
+                    ambiguity:   "You appear comfortable working when direction or requirements are unclear. You can make progress without needing full definition upfront.",
+                    exploration: "You tend to generate options, run experiments, and test ideas. You are likely energised by discovering what is possible before committing to a path.",
+                    structure:   "You tend to introduce organisation, frameworks, or plans when work feels unclear. You help teams coordinate and reduce confusion.",
+                    alignment:   "You focus strongly on bringing people to shared understanding. You are likely energised by facilitating clarity across stakeholders and team members.",
+                    momentum:    "You tend to push teams toward making decisions and moving forward. You help prevent work from stalling in uncertainty or over-deliberation.",
+                    analytical:  "You approach problems through careful analysis and root cause investigation. You are energised by understanding problems deeply before acting.",
+                    resourcefulness: "You tend to move forward through experimentation, prototyping, and small tests. You learn by doing and are comfortable generating progress even when the path is unclear."
+                  };
+                  return (
+                    <div key={key} style={{ background: "white", borderRadius: 10, padding: "20px 24px", borderLeft: `4px solid ${dim.color}`, border: `1px solid #e8e8e8`, borderLeft: `4px solid ${dim.color}` }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+                        <span style={{ color: dim.color, fontSize: 16 }}>{dim.icon}</span>
+                        <span style={{ fontSize: 13, fontWeight: 600, color: "#22567C", textTransform: "uppercase", letterSpacing: "0.05em" }}>{dim.label}</span>
+                      </div>
+                      <p style={{ fontSize: 14, color: "#212526", lineHeight: 1.65 }}>{descriptions[key]}</p>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Disclaimer */}
+              <div style={{ background: "#f0f7ff", borderRadius: 10, padding: "14px 20px", marginBottom: 16, border: "1px solid #c8dff5" }}>
+                <p style={{ fontSize: 12, color: "#22567C", lineHeight: 1.6 }}>
+                  <strong>Resourcefulness</strong> reflects how readily you find ways to make progress when working with unfamiliar tools, domains or problems. A high score here suggests you tend to self-learn quickly, experiment, and move forward without waiting for certainty.
+                </p>
+              </div>
+              <div style={{ background: "#f8f8f8", borderRadius: 10, padding: "16px 20px", marginBottom: 20, border: "1px solid #e8e8e8" }}>
+                <p style={{ fontSize: 12, color: "#777", lineHeight: 1.6 }}>
+                  <strong style={{ color: "#555" }}>These results indicate behavioural tendencies, not fixed traits.</strong> Most people show strength across more than one dimension. Results should be used as one input when thinking about team composition — not as a definitive classification.
+                </p>
+              </div>
+              <div style={{ background: "#fffaf5", border: "1px solid #fde8cc", borderRadius: 10, padding: "14px 18px", marginBottom: 32 }}>
+                <p style={{ fontSize: 12, color: "#8a5200", lineHeight: 1.5 }}>
+                  This is a lightweight behavioural reflection tool, not a validated psychometric assessment. It is intended to prompt useful discussion about team strengths and engagement fit.
+                </p>
+              </div>
+
+              <button className="btn-primary" onClick={handleRetake} style={{ padding: "12px 28px", fontSize: 14, borderRadius: 8 }}>↺ Retake survey</button>
+            </div>
+          )}
+
+          {/* Footer */}
+          <footer style={{ background: "#212526", marginTop: 64, padding: "24px 32px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <div style={{ width: 28, height: 28, background: "#1795D4", borderRadius: 4, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <span style={{ color: "white", fontWeight: 700, fontSize: 10 }}>[=]</span>
+              </div>
+              <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 13 }}>equal experts</span>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 2 }}>
+              <span style={{ color: "rgba(255,255,255,0.3)", fontSize: 11 }}>Consultant Contribution Survey</span>
+              <span style={{ color: "rgba(255,255,255,0.2)", fontSize: 10 }}>v{VERSION}</span>
+            </div>
+          </footer>
+
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
